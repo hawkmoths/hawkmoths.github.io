@@ -1,0 +1,860 @@
+<!--
+CHANGELOG
+v1: imported villagers
+v1.1: added shortcodes
+v1.2: set shortcode length to 2, fully enabling the faves list
+v1.3: added fluff and max batch size setting.
+v1.4: added sorting for species and gender
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0">
+<title>Picker</title>
+<style>
+body {
+    background:#FFF;
+    color:#000;
+    font-family:verdana, sans-serif;
+    font-size:10pt;
+    margin:0;
+    padding:10px;
+}
+
+a:link, a:visited {
+    color:#008;
+    font-weight:bold;
+    text-decoration:none;
+}
+
+a:active, a:hover {
+    color:#ACF;
+}
+
+.info {
+    font-weight:bold;
+}
+
+button {
+    font-family:inherit;
+    cursor:pointer;
+    border:0;
+    border-radius:3px;
+    padding:0.3em 0.5em;
+    background:#CCC;
+    color:#000;
+}
+
+button:hover {
+    background:#DDD;
+}
+
+button.disabled {
+    background:#DDD;
+    color:#888;
+    cursor:not-allowed;
+}
+
+button.disabled:hover {
+    background:#DDD;
+}
+
+#container {
+    position:relative;
+    margin-left:-10px;
+    margin-right:-10px;
+    padding:10px;
+    overflow:hidden;
+}
+
+@media (min-width:1024px) {
+    /* Put the found favorites beside the picking div when the window is sufficiently large */
+    #picking {
+        float:left;
+        width:636px;
+    }
+
+    #secondary {
+        margin-left:646px;
+    }
+}
+
+@media (min-width:1300px) {
+    /* Once we get to the point where 636px is less than half of the width of the screen, make the picking div just take up half */
+    #picking {
+        width:50%;
+    }
+
+    #secondary {
+        margin-left:51%;
+    }
+}
+
+#pick {
+    background:#58F;
+    color:#FFF;
+    font-size:larger;
+    font-weight:bold;
+    width:6em;
+    border-radius:5px;
+    margin-right:10px;
+}
+
+#pick.disabled {
+    background:#ACF;
+}
+
+#pick:hover {
+    background:#ACF;
+}
+
+.item-list {
+    padding:0;
+    list-style-type:none;
+    line-height:100px;
+}
+
+.item-list li {
+    margin:0;
+    display:inline-block;
+    height:100px;
+    width:100px;
+    line-height:100px;
+    border:3px solid transparent;
+    text-align:center;
+    position:relative;
+    vertical-align:top;
+    overflow:hidden;
+    border-radius:53px;
+    background:#F7F7F7;
+    color:#000;
+}
+
+.item-list li img {
+    vertical-align:middle;
+    max-height:100%;
+    max-width:100%;
+}
+
+.item-list li span {
+    display:inline-block;
+    vertical-align:middle;
+    line-height:1.2;
+}
+
+@media (max-width:636px) {
+    .item-list {
+        line-height:75px;
+    }
+
+    .item-list li {
+        line-height:75px;
+        height:75px;
+        width:75px;
+    }
+}
+
+@media (max-width:423px) {
+    .item-list {
+        line-height:50px;
+    }
+
+    .item-list li {
+        line-height:50px;
+        height:50px;
+        width:50px;
+    }
+}
+
+#evaluating li {
+    cursor:pointer;
+}
+
+#favorites li {
+    cursor:move;
+}
+
+.item-list li:hover {
+    background:#CDF;
+}
+
+.item-list.sorting li:hover {
+    background:#F7F7F7;
+}
+
+#evaluating li.selected {
+    border:3px solid #7AC;
+}
+
+#evaluating, #buttons {
+    text-align:center;
+    margin:auto;
+}
+
+#evaluating li.notice {
+    width:auto;
+    height:auto;
+    max-width:260px;
+    margin:auto;
+    background:#F7F7F7;
+    border-radius:10px;
+    padding:30px 30px;
+    color:#000;
+    text-align:center;
+    line-height:1.4;
+    cursor:auto;
+    font-size:10pt;
+}
+
+#buttons {
+    margin-top:30px;
+    position:relative;
+    z-index:3;
+}
+
+#shared-list-modal {
+    position:absolute;
+    background:#FFF;
+    margin:60px auto;
+    top:0;
+    right:0;
+    left:0;
+    width:650px;
+    max-width:95%;
+    box-sizing:border-box;
+    padding:20px 50px 50px;
+    box-shadow:1px 1px 5px #333;
+    z-index:100;
+}
+
+@media(max-width:700px) {
+    #shared-list-modal {
+        padding:20px;
+    }
+}
+
+#shared-list-modal:before {
+    content:'';
+    position:fixed;
+    background:#FFF;
+    opacity:0.5;
+    top:0;
+    right:0;
+    bottom:0;
+    left:0;
+    z-index:-1;
+}
+
+#shared-list-modal .item-list {
+    text-align:center;
+    margin:2em 0;
+}
+
+#shared-list-modal .close {
+    position:absolute;
+    top:10px;
+    right:10px;
+    width:30px;
+    line-height:30px;
+    color:#AAA;
+    font-weight:bold;
+    text-align:center;
+    background:none;
+    padding:0;
+    font-size:larger;
+}
+
+#shared-list-modal .close:hover {
+    background:#EEE;
+}
+
+#shared-list-modal .buttons {
+    text-align:center;
+    line-height:3.5em;
+}
+
+#shared-list-modal button {
+    padding:0.9em 2em;
+    margin:0 0.2em;
+}
+</style>
+</head>
+<body>
+<h1>ACNH villager sorter</h1>
+
+<p>This sorter finds your favourite villagers!</p>
+<p>Choose villagers that you prefer below; you can choose as many as you like. The results should be consistent if you choose consistently. If you find yourself overlooking certain villagers try reducing the batch size.</p>
+<p id="credits">Modified from Dragonfly Cave's <a href="https://www.dragonflycave.com/favorite.html">Favourite Pokemon Picker</a> by hawkmoth#6021. Message me if you have any problems!</p>
+
+<div id="settings">
+  <h3>Settings</h3>
+  <div id="batchsize_settings">
+    <h4>Max batch size:</h4>
+    <input type="number" id="max-batch-size"><br><br>
+  </div>
+<!--  <label><input type="checkbox" name="select-all" id="select-all" />Check/uncheck all boxes</label>-->
+  <h4>Species:</h4>
+  <div class="checkboxes">
+    <label><input type="checkbox" name="species" class="species" value="alligator">Alligator</label>
+    <label><input type="checkbox" name="species" class="species" value="anteater">Anteater</label>
+    <label><input type="checkbox" name="species" class="species" value="bear">Bear</label>
+    <label><input type="checkbox" name="species" class="species" value="bird">Bird</label>
+    <label><input type="checkbox" name="species" class="species" value="cat">Cat</label>
+    <label><input type="checkbox" name="species" class="species" value="chicken">Chicken</label>
+    <label><input type="checkbox" name="species" class="species" value="cow">Cow</label>
+    <label><input type="checkbox" name="species" class="species" value="cub">Cub</label>
+    <label><input type="checkbox" name="species" class="species" value="deer">Deer</label>
+    <label><input type="checkbox" name="species" class="species" value="dog">Dog</label>
+    <label><input type="checkbox" name="species" class="species" value="duck">Duck</label>
+    <label><input type="checkbox" name="species" class="species" value="eagle">Eagle</label>
+    <label><input type="checkbox" name="species" class="species" value="elephant">Elephant</label>
+    <label><input type="checkbox" name="species" class="species" value="frog">Frog</label>
+    <label><input type="checkbox" name="species" class="species" value="goat">Goat</label>
+    <label><input type="checkbox" name="species" class="species" value="gorilla">Gorilla</label>
+    <label><input type="checkbox" name="species" class="species" value="hamster">Hamster</label>
+    <label><input type="checkbox" name="species" class="species" value="hippo">Hippo</label>
+    <label><input type="checkbox" name="species" class="species" value="horse">Horse</label>
+    <label><input type="checkbox" name="species" class="species" value="kangaroo">Kangaroo</label>
+    <label><input type="checkbox" name="species" class="species" value="koala">Koala</label>
+    <label><input type="checkbox" name="species" class="species" value="lion">Lion</label>
+    <label><input type="checkbox" name="species" class="species" value="monkey">Monkey</label>
+    <label><input type="checkbox" name="species" class="species" value="mouse">Mouse</label>
+    <label><input type="checkbox" name="species" class="species" value="octopus">Octopus</label>
+    <label><input type="checkbox" name="species" class="species" value="ostrich">Ostrich</label>
+    <label><input type="checkbox" name="species" class="species" value="penguin">Penguin</label>
+    <label><input type="checkbox" name="species" class="species" value="pig">Pig</label>
+    <label><input type="checkbox" name="species" class="species" value="rabbit">Rabbit</label>
+    <label><input type="checkbox" name="species" class="species" value="rhino">Rhino</label>
+    <label><input type="checkbox" name="species" class="species" value="sheep">Sheep</label>
+    <label><input type="checkbox" name="species" class="species" value="squirrel">Squirrel</label>
+    <label><input type="checkbox" name="species" class="species" value="tiger">Tiger</label>
+    <label><input type="checkbox" name="species" class="species" value="wolf">Wolf</label>
+  </div>
+  <h4>Personalities:</h4>
+  <div class="checkboxes">
+    <label><input type="checkbox" name="personality" class="personality" value="cranky">Cranky</label>
+    <label><input type="checkbox" name="personality" class="personality" value="jock">Jock</label>
+    <label><input type="checkbox" name="personality" class="personality" value="lazy">Lazy</label>
+    <label><input type="checkbox" name="personality" class="personality" value="normal">Normal</label>
+    <label><input type="checkbox" name="personality" class="personality" value="peppy">Peppy</label>
+    <label><input type="checkbox" name="personality" class="personality" value="uchi">Uchi</label>
+    <label><input type="checkbox" name="personality" class="personality" value="smug">Smug</label>
+    <label><input type="checkbox" name="personality" class="personality" value="snooty">Snooty</label>
+  </div>
+  <h4>Genders:</h4>
+  <div class="checkboxes">
+    <label><input type="checkbox" name="genders" class="genders" value="m">M</label>
+    <label><input type="checkbox" name="genders" class="genders" value="f">F</label>
+  </div>
+</div>
+
+<div id="container">
+
+<div id="picking">
+<ul id="evaluating" class="item-list">
+</ul>
+
+<p id="buttons"><button id="pick">Pick</button> <button id="pass">Pass</button> <button id="undo">Undo</button> <button id="redo">Redo</button></p>
+</div>
+
+<div id="secondary">
+<h2>Found favourites</h2>
+
+<ol id="favorites" class="item-list">
+</ol>
+
+<p><a href="" id="shortcode-link">Permalink to this list</a></p>
+</div>
+</div>
+<script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+<script src="picker.js"></script>
+<script src="picker-ui.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.7.0/Sortable.min.js"></script>
+
+<div id="shared-list-modal" style="display:none">
+<button class="close shared-list-skip">&times;</button>
+<h2>Shared list</h2>
+
+<p>Generated by this picker tool. Create your own list or continue from this one below!</p>
+
+<ol id="shared-list" class="item-list">
+</ol>
+
+<p class="buttons"><button id="shared-list-continue">Continue from this list</button> <button class="shared-list-skip">Make my own list</button></p>
+</div>
+<script>
+'use strict';
+
+//$('#select-all').click(function(event) {
+//    if(this.checked) {
+//        // Iterate each checkbox
+//        $(':checkbox').each(function() {
+//            this.checked = true;
+//        });
+//    } else {
+//        $(':checkbox').each(function() {
+//            this.checked = false;
+//        });
+//    }
+//});
+
+var items = [
+    // Villagers
+    {id:'Admiral', image:'images/admiral.png', species:'bird', gender:'m', personality:'cranky', shortcode:'00'},
+    {id:'Agent S', image:'images/agents.png', species:'squirrel', gender:'f', personality:'peppy', shortcode:'01'},
+    {id:'Agnes', image:'images/agnes.png', species:'pig', gender:'f', personality:'uchi', shortcode:'02'},
+    {id:'Al', image:'images/al.png', species:'gorilla', gender:'m', personality:'lazy', shortcode:'03'},
+    {id:'Alfonso', image:'images/alfonso.png', species:'alligator', gender:'m', personality:'lazy', shortcode:'04'},
+    {id:'Alice', image:'images/alice.png', species:'koala', gender:'f', personality:'normal', shortcode:'05'},
+    {id:'Alli', image:'images/alli.png', species:'alligator', gender:'f', personality:'snooty', shortcode:'06'},
+    {id:'Amelia', image:'images/amelia.png', species:'eagle', gender:'f', personality:'snooty', shortcode:'07'},
+    {id:'Anabelle', image:'images/anabelle.png', species:'anteater', gender:'f', personality:'peppy', shortcode:'08'},
+    {id:'Anchovy', image:'images/anchovy.png', species:'bird', gender:'m', personality:'lazy', shortcode:'09'},
+    {id:'Angus', image:'images/angus.png', species:'bull', gender:'m', personality:'cranky', shortcode:'0a'},
+    {id:'Anicotti', image:'images/anicotti.png', species:'mouse', gender:'f', personality:'snooty', shortcode:'0b'},
+    {id:'Ankha', image:'images/ankha.png', species:'cat', gender:'f', personality:'snooty', shortcode:'0c'},
+    {id:'Annalisa', image:'images/annalisa.png', species:'anteater', gender:'f', personality:'normal', shortcode:'0d'},
+    {id:'Annalise', image:'images/annalise.png', species:'horse', gender:'f', personality:'snooty', shortcode:'0e'},
+    {id:'Antonio', image:'images/antonio.png', species:'anteater', gender:'m', personality:'jock', shortcode:'0f'},
+    {id:'Apollo', image:'images/apollo.png', species:'eagle', gender:'m', personality:'cranky', shortcode:'0g'},
+    {id:'Apple', image:'images/apple.png', species:'hamster', gender:'f', personality:'peppy', shortcode:'0h'},
+    {id:'Astrid', image:'images/astrid.png', species:'kangaroo', gender:'f', personality:'snooty', shortcode:'0i'},
+    {id:'Audie', image:'images/audie.png', species:'wolf', gender:'f', personality:'peppy', shortcode:'0j'},
+    {id:'Aurora', image:'images/aurora.png', species:'penguin', gender:'f', personality:'normal', shortcode:'0k'},
+    {id:'Ava', image:'images/ava.png', species:'chicken', gender:'f', personality:'normal', shortcode:'0l'},
+    {id:'Avery', image:'images/avery.png', species:'eagle', gender:'m', personality:'cranky', shortcode:'0m'},
+    {id:'Axel', image:'images/axel.png', species:'elephant', gender:'m', personality:'jock', shortcode:'0n'},
+    {id:'Baabara', image:'images/baabara.png', species:'sheep', gender:'f', personality:'snooty', shortcode:'10'},
+    {id:'Bam', image:'images/bam.png', species:'deer', gender:'m', personality:'jock', shortcode:'11'},
+    {id:'Bangle', image:'images/bangle.png', species:'tiger', gender:'f', personality:'peppy', shortcode:'12'},
+    {id:'Barold', image:'images/barold.png', species:'cub', gender:'m', personality:'lazy', shortcode:'13'},
+    {id:'Bea', image:'images/bea.png', species:'dog', gender:'f', personality:'normal', shortcode:'14'},
+    {id:'Beardo', image:'images/beardo.png', species:'bear', gender:'m', personality:'smug', shortcode:'15'},
+    {id:'Beau', image:'images/beau.png', species:'deer', gender:'m', personality:'lazy', shortcode:'16'},
+    {id:'Becky', image:'images/becky.png', species:'chicken', gender:'f', personality:'snooty', shortcode:'17'},
+    {id:'Bella', image:'images/bella.png', species:'mouse', gender:'f', personality:'peppy', shortcode:'18'},
+    {id:'Benedict', image:'images/benedict.png', species:'chicken', gender:'m', personality:'lazy', shortcode:'19'},
+    {id:'Benjamin', image:'images/benjamin.png', species:'dog', gender:'m', personality:'lazy', shortcode:'1a'},
+    {id:'Bertha', image:'images/bertha.png', species:'hippo', gender:'f', personality:'normal', shortcode:'1b'},
+    {id:'Bettina', image:'images/bettina.png', species:'mouse', gender:'f', personality:'normal', shortcode:'1c'},
+    {id:'Bianca', image:'images/bianca.png', species:'tiger', gender:'f', personality:'peppy', shortcode:'1d'},
+    {id:'Biff', image:'images/biff.png', species:'hippo', gender:'m', personality:'jock', shortcode:'1e'},
+    {id:'Big Top', image:'images/bigtop.png', species:'elephant', gender:'m', personality:'lazy', shortcode:'1f'},
+    {id:'Bill', image:'images/bill.png', species:'duck', gender:'m', personality:'jock', shortcode:'1g'},
+    {id:'Billy', image:'images/billy.png', species:'goat', gender:'m', personality:'jock', shortcode:'1h'},
+    {id:'Biskit', image:'images/biskit.png', species:'dog', gender:'m', personality:'lazy', shortcode:'1i'},
+    {id:'Bitty', image:'images/bitty.png', species:'hippo', gender:'f', personality:'snooty', shortcode:'1j'},
+    {id:'Blaire', image:'images/blaire.png', species:'squirrel', gender:'f', personality:'snooty', shortcode:'1k'},
+    {id:'Blanche', image:'images/blanche.png', species:'ostrich', gender:'f', personality:'snooty', shortcode:'1l'},
+    {id:'Bluebear', image:'images/bluebear.png', species:'cub', gender:'f', personality:'peppy', shortcode:'1m'},
+    {id:'Bob', image:'images/bob.png', species:'cat', gender:'m', personality:'lazy', shortcode:'1n'},
+    {id:'Bonbon', image:'images/bonbon.png', species:'rabbit', gender:'f', personality:'peppy', shortcode:'20'},
+    {id:'Bones', image:'images/bones.png', species:'dog', gender:'m', personality:'lazy', shortcode:'21'},
+    {id:'Boomer', image:'images/boomer.png', species:'penguin', gender:'m', personality:'lazy', shortcode:'22'},
+    {id:'Boone', image:'images/boone.png', species:'gorilla', gender:'m', personality:'jock', shortcode:'23'},
+    {id:'Boots', image:'images/boots.png', species:'alligator', gender:'m', personality:'jock', shortcode:'24'},
+    {id:'Boris', image:'images/boris.png', species:'pig', gender:'m', personality:'cranky', shortcode:'25'},
+    {id:'Boyd', image:'images/boyd.png', species:'gorilla', gender:'m', personality:'cranky', shortcode:'26'},
+    {id:'Bree', image:'images/bree.png', species:'mouse', gender:'f', personality:'snooty', shortcode:'27'},
+    {id:'Broccolo', image:'images/broccolo.png', species:'mouse', gender:'m', personality:'lazy', shortcode:'28'},
+    {id:'Broffina', image:'images/broffina.png', species:'chicken', gender:'f', personality:'snooty', shortcode:'29'},
+    {id:'Bruce', image:'images/bruce.png', species:'deer', gender:'m', personality:'cranky', shortcode:'2a'},
+    {id:'Bubbles', image:'images/bubbles.png', species:'hippo', gender:'f', personality:'peppy', shortcode:'2b'},
+    {id:'Buck', image:'images/buck.png', species:'horse', gender:'m', personality:'jock', shortcode:'2c'},
+    {id:'Bud', image:'images/bud.png', species:'lion', gender:'m', personality:'jock', shortcode:'2d'},
+    {id:'Bunnie', image:'images/bunnie.png', species:'rabbit', gender:'f', personality:'peppy', shortcode:'2e'},
+    {id:'Butch', image:'images/butch.png', species:'dog', gender:'m', personality:'cranky', shortcode:'2f'},
+    {id:'Buzz', image:'images/buzz.png', species:'eagle', gender:'m', personality:'cranky', shortcode:'2g'},
+    {id:'Cally', image:'images/cally.png', species:'squirrel', gender:'f', personality:'normal', shortcode:'2h'},
+    {id:'Camofrog', image:'images/camofrog.png', species:'frog', gender:'m', personality:'cranky', shortcode:'2i'},
+    {id:'Canberra', image:'images/canberra.png', species:'koala', gender:'f', personality:'uchi', shortcode:'2j'},
+    {id:'Candi', image:'images/candi.png', species:'mouse', gender:'f', personality:'peppy', shortcode:'2k'},
+    {id:'Carmen', image:'images/carmen.png', species:'rabbit', gender:'f', personality:'peppy', shortcode:'2l'},
+    {id:'Caroline', image:'images/caroline.png', species:'squirrel', gender:'f', personality:'normal', shortcode:'2m'},
+    {id:'Carrie', image:'images/carrie.png', species:'kangaroo', gender:'f', personality:'normal', shortcode:'2n'},
+    {id:'Cashmere', image:'images/cashmere.png', species:'sheep', gender:'f', personality:'snooty', shortcode:'30'},
+    {id:'Celia', image:'images/celia.png', species:'eagle', gender:'f', personality:'normal', shortcode:'31'},
+    {id:'Cesar', image:'images/cesar.png', species:'gorilla', gender:'m', personality:'cranky', shortcode:'32'},
+    {id:'Chadder', image:'images/chadder.png', species:'mouse', gender:'m', personality:'smug', shortcode:'33'},
+    {id:'Chai', image:'images/chai.png', species:'elephant', gender:'f', personality:'peppy', shortcode:'34'},
+    {id:'Charlise', image:'images/charlise.png', species:'bear', gender:'f', personality:'uchi', shortcode:'35'},
+    {id:'Chelsea', image:'images/chelsea.png', species:'deer', gender:'f', personality:'normal', shortcode:'36'},
+    {id:'Cheri', image:'images/cheri.png', species:'cub', gender:'f', personality:'peppy', shortcode:'37'},
+    {id:'Cherry', image:'images/cherry.png', species:'dog', gender:'f', personality:'uchi', shortcode:'38'},
+    {id:'Chester', image:'images/chester.png', species:'cub', gender:'m', personality:'lazy', shortcode:'39'},
+    {id:'Chevre', image:'images/chevre.png', species:'goat', gender:'f', personality:'normal', shortcode:'3a'},
+    {id:'Chief', image:'images/chief.png', species:'wolf', gender:'m', personality:'cranky', shortcode:'3b'},
+    {id:'Chops', image:'images/chops.png', species:'pig', gender:'m', personality:'smug', shortcode:'3c'},
+    {id:'Chow', image:'images/chow.png', species:'bear', gender:'m', personality:'cranky', shortcode:'3d'},
+    {id:'Chrissy', image:'images/chrissy.png', species:'rabbit', gender:'f', personality:'peppy', shortcode:'3e'},
+    {id:'Claude', image:'images/claude.png', species:'rabbit', gender:'m', personality:'lazy', shortcode:'3f'},
+    {id:'Claudia', image:'images/claudia.png', species:'tiger', gender:'f', personality:'snooty', shortcode:'3g'},
+    {id:'Clay', image:'images/clay.png', species:'hamster', gender:'m', personality:'lazy', shortcode:'3h'},
+    {id:'Cleo', image:'images/cleo.png', species:'horse', gender:'f', personality:'snooty', shortcode:'3i'},
+    {id:'Clyde', image:'images/clyde.png', species:'horse', gender:'m', personality:'lazy', shortcode:'3j'},
+    {id:'Coach', image:'images/coach.png', species:'bull', gender:'m', personality:'jock', shortcode:'3k'},
+    {id:'Cobb', image:'images/cobb.png', species:'pig', gender:'m', personality:'jock', shortcode:'3l'},
+    {id:'Coco', image:'images/coco.png', species:'rabbit', gender:'f', personality:'normal', shortcode:'3m'},
+    {id:'Cole', image:'images/cole.png', species:'rabbit', gender:'m', personality:'lazy', shortcode:'3n'},
+    {id:'Colton', image:'images/colton.png', species:'horse', gender:'m', personality:'smug', shortcode:'40'},
+    {id:'Cookie', image:'images/cookie.png', species:'dog', gender:'f', personality:'peppy', shortcode:'41'},
+    {id:'Cousteau', image:'images/cousteau.png', species:'frog', gender:'m', personality:'jock', shortcode:'42'},
+    {id:'Cranston', image:'images/cranston.png', species:'ostrich', gender:'m', personality:'lazy', shortcode:'43'},
+    {id:'Croque', image:'images/croque.png', species:'frog', gender:'m', personality:'cranky', shortcode:'44'},
+    {id:'Cube', image:'images/cube.png', species:'penguin', gender:'m', personality:'lazy', shortcode:'45'},
+    {id:'Curlos', image:'images/curlos.png', species:'sheep', gender:'m', personality:'smug', shortcode:'46'},
+    {id:'Curly', image:'images/curly.png', species:'pig', gender:'m', personality:'jock', shortcode:'47'},
+    {id:'Curt', image:'images/curt.png', species:'bear', gender:'m', personality:'cranky', shortcode:'48'},
+    {id:'Cyd', image:'images/cyd.png', species:'elephant', gender:'m', personality:'cranky', shortcode:'49'},
+    {id:'Cyrano', image:'images/cyrano.png', species:'anteater', gender:'m', personality:'cranky', shortcode:'4a'},
+    {id:'Daisy', image:'images/daisy.png', species:'dog', gender:'f', personality:'normal', shortcode:'4b'},
+    {id:'Deena', image:'images/deena.png', species:'duck', gender:'f', personality:'normal', shortcode:'4c'},
+    {id:'Deirdre', image:'images/deirdre.png', species:'deer', gender:'f', personality:'uchi', shortcode:'4d'},
+    {id:'Del', image:'images/del.png', species:'alligator', gender:'m', personality:'cranky', shortcode:'4e'},
+    {id:'Deli', image:'images/deli.png', species:'monkey', gender:'m', personality:'lazy', shortcode:'4f'},
+    {id:'Derwin', image:'images/derwin.png', species:'duck', gender:'m', personality:'lazy', shortcode:'4g'},
+    {id:'Diana', image:'images/diana.png', species:'deer', gender:'f', personality:'snooty', shortcode:'4h'},
+    {id:'Diva', image:'images/diva.png', species:'frog', gender:'f', personality:'uchi', shortcode:'4i'},
+    {id:'Dizzy', image:'images/dizzy.png', species:'elephant', gender:'m', personality:'lazy', shortcode:'4j'},
+    {id:'Dobie', image:'images/dobie.png', species:'wolf', gender:'m', personality:'cranky', shortcode:'4k'},
+    {id:'Doc', image:'images/doc.png', species:'rabbit', gender:'m', personality:'lazy', shortcode:'4l'},
+    {id:'Dom', image:'images/dom.png', species:'sheep', gender:'m', personality:'jock', shortcode:'4m'},
+    {id:'Dora', image:'images/dora.png', species:'mouse', gender:'f', personality:'normal', shortcode:'4n'},
+    {id:'Dotty', image:'images/dotty.png', species:'rabbit', gender:'f', personality:'peppy', shortcode:'50'},
+    {id:'Drago', image:'images/drago.png', species:'alligator', gender:'m', personality:'lazy', shortcode:'51'},
+    {id:'Drake', image:'images/drake.png', species:'duck', gender:'m', personality:'lazy', shortcode:'52'},
+    {id:'Drift', image:'images/drift.png', species:'frog', gender:'m', personality:'jock', shortcode:'53'},
+    {id:'Ed', image:'images/ed.png', species:'horse', gender:'m', personality:'smug', shortcode:'54'},
+    {id:'Egbert', image:'images/egbert.png', species:'chicken', gender:'m', personality:'lazy', shortcode:'55'},
+    {id:'Elise', image:'images/elise.png', species:'monkey', gender:'f', personality:'snooty', shortcode:'56'},
+    {id:'Ellie', image:'images/ellie.png', species:'elephant', gender:'f', personality:'normal', shortcode:'57'},
+    {id:'Elmer', image:'images/elmer.png', species:'horse', gender:'m', personality:'lazy', shortcode:'58'},
+    {id:'Eloise', image:'images/eloise.png', species:'elephant', gender:'f', personality:'snooty', shortcode:'59'},
+    {id:'Elvis', image:'images/elvis.png', species:'lion', gender:'m', personality:'cranky', shortcode:'5a'},
+    {id:'Erik', image:'images/erik.png', species:'deer', gender:'m', personality:'lazy', shortcode:'5b'},
+    {id:'Etoile', image:'images/etoile.png', species:'sheep', gender:'f', personality:'normal', shortcode:'5c'},
+    {id:'Eugene', image:'images/eugene.png', species:'koala', gender:'m', personality:'smug', shortcode:'5d'},
+    {id:'Eunice', image:'images/eunice.png', species:'sheep', gender:'f', personality:'normal', shortcode:'5e'},
+    {id:'Fang', image:'images/fang.png', species:'wolf', gender:'m', personality:'cranky', shortcode:'5f'},
+    {id:'Fauna', image:'images/fauna.png', species:'deer', gender:'f', personality:'normal', shortcode:'5g'},
+    {id:'Felicity', image:'images/felicity.png', species:'cat', gender:'f', personality:'peppy', shortcode:'5h'},
+    {id:'Filbert', image:'images/filbert.png', species:'squirrel', gender:'m', personality:'lazy', shortcode:'5i'},
+    {id:'Flip', image:'images/flip.png', species:'monkey', gender:'m', personality:'jock', shortcode:'5j'},
+    {id:'Flo', image:'images/flo.png', species:'penguin', gender:'f', personality:'uchi', shortcode:'5k'},
+    {id:'Flora', image:'images/flora.png', species:'ostrich', gender:'f', personality:'peppy', shortcode:'5l'},
+    {id:'Flurry', image:'images/flurry.png', species:'hamster', gender:'f', personality:'normal', shortcode:'5m'},
+    {id:'Francine', image:'images/francine.png', species:'rabbit', gender:'f', personality:'snooty', shortcode:'5n'},
+    {id:'Frank', image:'images/frank.png', species:'eagle', gender:'m', personality:'cranky', shortcode:'60'},
+    {id:'Freckles', image:'images/freckles.png', species:'duck', gender:'f', personality:'peppy', shortcode:'61'},
+    {id:'Freya', image:'images/freya.png', species:'wolf', gender:'f', personality:'snooty', shortcode:'62'},
+    {id:'Friga', image:'images/friga.png', species:'penguin', gender:'f', personality:'snooty', shortcode:'63'},
+    {id:'Frita', image:'images/frita.png', species:'sheep', gender:'f', personality:'uchi', shortcode:'64'},
+    {id:'Frobert', image:'images/frobert.png', species:'frog', gender:'m', personality:'jock', shortcode:'65'},
+    {id:'Fuchsia', image:'images/fuchsia.png', species:'deer', gender:'f', personality:'uchi', shortcode:'66'},
+    {id:'Gabi', image:'images/gabi.png', species:'rabbit', gender:'f', personality:'peppy', shortcode:'67'},
+    {id:'Gala', image:'images/gala.png', species:'pig', gender:'f', personality:'normal', shortcode:'68'},
+    {id:'Gaston', image:'images/gaston.png', species:'rabbit', gender:'m', personality:'cranky', shortcode:'69'},
+    {id:'Gayle', image:'images/gayle.png', species:'alligator', gender:'f', personality:'normal', shortcode:'6a'},
+    {id:'Genji', image:'images/genji.png', species:'rabbit', gender:'m', personality:'jock', shortcode:'6b'},
+    {id:'Gigi', image:'images/gigi.png', species:'frog', gender:'f', personality:'snooty', shortcode:'6c'},
+    {id:'Gladys', image:'images/gladys.png', species:'ostrich', gender:'f', personality:'normal', shortcode:'6d'},
+    {id:'Gloria', image:'images/gloria.png', species:'duck', gender:'f', personality:'snooty', shortcode:'6e'},
+    {id:'Goldie', image:'images/goldie.png', species:'dog', gender:'f', personality:'normal', shortcode:'6f'},
+    {id:'Gonzo', image:'images/gonzo.png', species:'koala', gender:'m', personality:'cranky', shortcode:'6g'},
+    {id:'Goose', image:'images/goose.png', species:'chicken', gender:'m', personality:'jock', shortcode:'6h'},
+    {id:'Graham', image:'images/graham.png', species:'hamster', gender:'m', personality:'smug', shortcode:'6i'},
+    {id:'Greta', image:'images/greta.png', species:'mouse', gender:'f', personality:'snooty', shortcode:'6j'},
+    {id:'Grizzly', image:'images/grizzly.png', species:'bear', gender:'m', personality:'cranky', shortcode:'6k'},
+    {id:'Groucho', image:'images/groucho.png', species:'bear', gender:'m', personality:'cranky', shortcode:'6l'},
+    {id:'Gruff', image:'images/gruff.png', species:'goat', gender:'m', personality:'cranky', shortcode:'6m'},
+    {id:'Gwen', image:'images/gwen.png', species:'penguin', gender:'f', personality:'snooty', shortcode:'6n'},
+    {id:'Hamlet', image:'images/hamlet.png', species:'hamster', gender:'m', personality:'jock', shortcode:'70'},
+    {id:'Hamphrey', image:'images/hamphrey.png', species:'hamster', gender:'m', personality:'cranky', shortcode:'71'},
+    {id:'Hans', image:'images/hans.png', species:'gorilla', gender:'m', personality:'smug', shortcode:'72'},
+    {id:'Harry', image:'images/harry.png', species:'hippo', gender:'m', personality:'cranky', shortcode:'73'},
+    {id:'Hazel', image:'images/hazel.png', species:'squirrel', gender:'f', personality:'uchi', shortcode:'74'},
+    {id:'Henry', image:'images/henry.png', species:'frog', gender:'m', personality:'smug', shortcode:'75'},
+    {id:'Hippeux', image:'images/hippeux.png', species:'hippo', gender:'m', personality:'smug', shortcode:'76'},
+    {id:'Hopkins', image:'images/hopkins.png', species:'rabbit', gender:'m', personality:'lazy', shortcode:'77'},
+    {id:'Hopper', image:'images/hopper.png', species:'penguin', gender:'m', personality:'cranky', shortcode:'78'},
+    {id:'Hornsby', image:'images/hornsby.png', species:'rhino', gender:'m', personality:'lazy', shortcode:'79'},
+    {id:'Huck', image:'images/huck.png', species:'frog', gender:'m', personality:'smug', shortcode:'7a'},
+    {id:'Hugh', image:'images/hugh.png', species:'pig', gender:'m', personality:'lazy', shortcode:'7b'},
+    {id:'Iggly', image:'images/iggly.png', species:'penguin', gender:'m', personality:'jock', shortcode:'7c'},
+    {id:'Ike', image:'images/ike.png', species:'bear', gender:'m', personality:'cranky', shortcode:'7d'},
+    {id:'Jacob', image:'images/jacob.png', species:'bird', gender:'m', personality:'lazy', shortcode:'7e'},
+    {id:'Jacques', image:'images/jacques.png', species:'bird', gender:'m', personality:'smug', shortcode:'7f'},
+    {id:'Jambette', image:'images/jambette.png', species:'frog', gender:'f', personality:'normal', shortcode:'7g'},
+    {id:'Jay', image:'images/jay.png', species:'bird', gender:'m', personality:'jock', shortcode:'7h'},
+    {id:'Jeremiah', image:'images/jeremiah.png', species:'frog', gender:'m', personality:'lazy', shortcode:'7i'},
+    {id:'Jitters', image:'images/jitters.png', species:'bird', gender:'m', personality:'jock', shortcode:'7j'},
+    {id:'Joey', image:'images/joey.png', species:'duck', gender:'m', personality:'lazy', shortcode:'7k'},
+    {id:'Judy', image:'images/judy.png', species:'cub', gender:'f', personality:'snooty', shortcode:'7l'},
+    {id:'Julia', image:'images/julia.png', species:'ostrich', gender:'f', personality:'snooty', shortcode:'7m'},
+    {id:'Julian', image:'images/julian.png', species:'horse', gender:'m', personality:'smug', shortcode:'7n'},
+    {id:'June', image:'images/june.png', species:'cub', gender:'f', personality:'normal', shortcode:'80'},
+    {id:'Kabuki', image:'images/kabuki.png', species:'cat', gender:'m', personality:'cranky', shortcode:'81'},
+    {id:'Katt', image:'images/katt.png', species:'cat', gender:'f', personality:'uchi', shortcode:'82'},
+    {id:'Keaton', image:'images/keaton.png', species:'eagle', gender:'m', personality:'smug', shortcode:'83'},
+    {id:'Ken', image:'images/ken.png', species:'chicken', gender:'m', personality:'smug', shortcode:'84'},
+    {id:'Ketchup', image:'images/ketchup.png', species:'duck', gender:'f', personality:'peppy', shortcode:'85'},
+    {id:'Kevin', image:'images/kevin.png', species:'pig', gender:'m', personality:'jock', shortcode:'86'},
+    {id:'Kid Cat', image:'images/kidcat.png', species:'cat', gender:'m', personality:'jock', shortcode:'87'},
+    {id:'Kidd', image:'images/kidd.png', species:'goat', gender:'m', personality:'smug', shortcode:'88'},
+    {id:'Kiki', image:'images/kiki.png', species:'cat', gender:'f', personality:'normal', shortcode:'89'},
+    {id:'Kitt', image:'images/kitt.png', species:'kangaroo', gender:'f', personality:'normal', shortcode:'8a'},
+    {id:'Kitty', image:'images/kitty.png', species:'cat', gender:'f', personality:'snooty', shortcode:'8b'},
+    {id:'Klaus', image:'images/klaus.png', species:'bear', gender:'m', personality:'smug', shortcode:'8c'},
+    {id:'Knox', image:'images/knox.png', species:'chicken', gender:'m', personality:'cranky', shortcode:'8d'},
+    {id:'Kody', image:'images/kody.png', species:'cub', gender:'m', personality:'jock', shortcode:'8e'},
+    {id:'Kyle', image:'images/kyle.png', species:'wolf', gender:'m', personality:'smug', shortcode:'8f'},
+    {id:'Leonardo', image:'images/leonardo.png', species:'tiger', gender:'m', personality:'jock', shortcode:'8g'},
+    {id:'Leopold', image:'images/leopold.png', species:'lion', gender:'m', personality:'smug', shortcode:'8h'},
+    {id:'Lily', image:'images/lily.png', species:'frog', gender:'f', personality:'normal', shortcode:'8i'},
+    {id:'Limberg', image:'images/limberg.png', species:'mouse', gender:'m', personality:'cranky', shortcode:'8j'},
+    {id:'Lionel', image:'images/lionel.png', species:'lion', gender:'m', personality:'smug', shortcode:'8k'},
+    {id:'Lobo', image:'images/lobo.png', species:'wolf', gender:'m', personality:'cranky', shortcode:'8l'},
+    {id:'Lolly', image:'images/lolly.png', species:'cat', gender:'f', personality:'normal', shortcode:'8m'},
+    {id:'Lopez', image:'images/lopez.png', species:'deer', gender:'m', personality:'smug', shortcode:'8n'},
+    {id:'Louie', image:'images/louie.png', species:'gorilla', gender:'m', personality:'jock', shortcode:'90'},
+    {id:'Lucha', image:'images/lucha.png', species:'bird', gender:'m', personality:'smug', shortcode:'91'},
+    {id:'Lucky', image:'images/lucky.png', species:'dog', gender:'m', personality:'lazy', shortcode:'92'},
+    {id:'Lucy', image:'images/lucy.png', species:'pig', gender:'f', personality:'normal', shortcode:'93'},
+    {id:'Lyman', image:'images/lyman.png', species:'koala', gender:'m', personality:'jock', shortcode:'94'},
+    {id:'Mac', image:'images/mac.png', species:'dog', gender:'m', personality:'jock', shortcode:'95'},
+    {id:'Maddie', image:'images/maddie.png', species:'dog', gender:'f', personality:'peppy', shortcode:'96'},
+    {id:'Maelle', image:'images/maelle.png', species:'duck', gender:'f', personality:'snooty', shortcode:'97'},
+    {id:'Maggie', image:'images/maggie.png', species:'pig', gender:'f', personality:'normal', shortcode:'98'},
+    {id:'Mallary', image:'images/mallary.png', species:'duck', gender:'f', personality:'snooty', shortcode:'99'},
+    {id:'Maple', image:'images/maple.png', species:'cub', gender:'f', personality:'normal', shortcode:'9a'},
+    {id:'Marcel', image:'images/marcel.png', species:'dog', gender:'m', personality:'lazy', shortcode:'9b'},
+    {id:'Marcie', image:'images/marcie.png', species:'kangaroo', gender:'f', personality:'normal', shortcode:'9c'},
+    {id:'Margie', image:'images/margie.png', species:'elephant', gender:'f', personality:'normal', shortcode:'9d'},
+    {id:'Marina', image:'images/marina.png', species:'octopus', gender:'f', personality:'normal', shortcode:'9e'},
+    {id:'Marshal', image:'images/marshal.png', species:'squirrel', gender:'m', personality:'smug', shortcode:'9f'},
+    {id:'Marty', image:'images/marty.png', species:'cub', gender:'m', personality:'lazy', shortcode:'9g'},
+    {id:'Mathilda', image:'images/mathilda.png', species:'kangaroo', gender:'f', personality:'snooty', shortcode:'9h'},
+    {id:'Megan', image:'images/megan.png', species:'bear', gender:'f', personality:'normal', shortcode:'9i'},
+    {id:'Melba', image:'images/melba.png', species:'koala', gender:'f', personality:'normal', shortcode:'9j'},
+    {id:'Merengue', image:'images/merengue.png', species:'rhino', gender:'f', personality:'normal', shortcode:'9k'},
+    {id:'Merry', image:'images/merry.png', species:'cat', gender:'f', personality:'peppy', shortcode:'9l'},
+    {id:'Midge', image:'images/midge.png', species:'bird', gender:'f', personality:'normal', shortcode:'9m'},
+    {id:'Mint', image:'images/mint.png', species:'squirrel', gender:'f', personality:'snooty', shortcode:'9n'},
+    {id:'Mira', image:'images/mira.png', species:'rabbit', gender:'f', personality:'uchi', shortcode:'a0'},
+    {id:'Miranda', image:'images/miranda.png', species:'duck', gender:'f', personality:'snooty', shortcode:'a1'},
+    {id:'Mitzi', image:'images/mitzi.png', species:'cat', gender:'f', personality:'normal', shortcode:'a2'},
+    {id:'Moe', image:'images/moe.png', species:'cat', gender:'m', personality:'lazy', shortcode:'a3'},
+    {id:'Molly', image:'images/molly.png', species:'duck', gender:'f', personality:'normal', shortcode:'a4'},
+    {id:'Monique', image:'images/monique.png', species:'cat', gender:'f', personality:'snooty', shortcode:'a5'},
+    {id:'Monty', image:'images/monty.png', species:'monkey', gender:'m', personality:'cranky', shortcode:'a6'},
+    {id:'Moose', image:'images/moose.png', species:'mouse', gender:'m', personality:'jock', shortcode:'a7'},
+    {id:'Mott', image:'images/mott.png', species:'lion', gender:'m', personality:'jock', shortcode:'a8'},
+    {id:'Moffy', image:'images/muffy.png', species:'sheep', gender:'f', personality:'uchi', shortcode:'a9'},
+    {id:'Murphy', image:'images/murphy.png', species:'cub', gender:'m', personality:'cranky', shortcode:'aa'},
+    {id:'Nan', image:'images/nan.png', species:'goat', gender:'f', personality:'normal', shortcode:'ab'},
+    {id:'Nana', image:'images/nana.png', species:'monkey', gender:'f', personality:'normal', shortcode:'ac'},
+    {id:'Naomi', image:'images/naomi.png', species:'cow', gender:'f', personality:'snooty', shortcode:'ad'},
+    {id:'Nate', image:'images/nate.png', species:'bear', gender:'m', personality:'lazy', shortcode:'ae'},
+    {id:'Nibbles', image:'images/nibbles.png', species:'squirrel', gender:'f', personality:'peppy', shortcode:'af'},
+    {id:'Norma', image:'images/norma.png', species:'cow', gender:'f', personality:'normal', shortcode:'ag'},
+    {id:'O\'Hare', image:'images/ohare.png', species:'rabbit', gender:'m', personality:'smug', shortcode:'ah'},
+    {id:'Octavian', image:'images/octavian.png', species:'octopus', gender:'m', personality:'cranky', shortcode:'ai'},
+    {id:'Olaf', image:'images/olaf.png', species:'anteater', gender:'m', personality:'smug', shortcode:'aj'},
+    {id:'Olive', image:'images/olive.png', species:'cub', gender:'f', personality:'normal', shortcode:'ak'},
+    {id:'Olivia', image:'images/olivia.png', species:'cat', gender:'f', personality:'snooty', shortcode:'al'},
+    {id:'Opal', image:'images/opal.png', species:'elephant', gender:'f', personality:'snooty', shortcode:'am'},
+    {id:'Ozzie', image:'images/ozzie.png', species:'koala', gender:'m', personality:'lazy', shortcode:'an'},
+    {id:'Pancetti', image:'images/pancetti.png', species:'pig', gender:'f', personality:'snooty', shortcode:'b0'},
+    {id:'Pango', image:'images/pango.png', species:'anteater', gender:'f', personality:'peppy', shortcode:'b1'},
+    {id:'Paolo', image:'images/paolo.png', species:'elephant', gender:'m', personality:'lazy', shortcode:'b2'},
+    {id:'Papi', image:'images/papi.png', species:'horse', gender:'m', personality:'lazy', shortcode:'b3'},
+    {id:'Pashmina', image:'images/pashmina.png', species:'goat', gender:'f', personality:'uchi', shortcode:'b4'},
+    {id:'Pate', image:'images/pate.png', species:'duck', gender:'f', personality:'peppy', shortcode:'b5'},
+    {id:'Patty', image:'images/patty.png', species:'cow', gender:'f', personality:'peppy', shortcode:'b6'},
+    {id:'Paula', image:'images/paula.png', species:'bear', gender:'f', personality:'uchi', shortcode:'b7'},
+    {id:'Peaches', image:'images/peaches.png', species:'horse', gender:'f', personality:'normal', shortcode:'b8'},
+    {id:'Peanut', image:'images/peanut.png', species:'squirrel', gender:'f', personality:'peppy', shortcode:'b9'},
+    {id:'Pecan', image:'images/pecan.png', species:'squirrel', gender:'f', personality:'snooty', shortcode:'ba'},
+    {id:'Peck', image:'images/peck.png', species:'bird', gender:'m', personality:'jock', shortcode:'bb'},
+    {id:'Peewee', image:'images/peewee.png', species:'gorilla', gender:'m', personality:'cranky', shortcode:'bc'},
+    {id:'Peggy', image:'images/peggy.png', species:'pig', gender:'f', personality:'peppy', shortcode:'bd'},
+    {id:'Pekoe', image:'images/pekoe.png', species:'cub', gender:'f', personality:'normal', shortcode:'be'},
+    {id:'Penelope', image:'images/penelope.png', species:'mouse', gender:'f', personality:'peppy', shortcode:'bf'},
+    {id:'Phil', image:'images/phil.png', species:'ostrich', gender:'m', personality:'smug', shortcode:'bg'},
+    {id:'Phoebe', image:'images/phoebe.png', species:'ostrich', gender:'f', personality:'uchi', shortcode:'bh'},
+    {id:'Pierce', image:'images/pierce.png', species:'eagle', gender:'m', personality:'jock', shortcode:'bi'},
+    {id:'Pietro', image:'images/pietro.png', species:'sheep', gender:'m', personality:'smug', shortcode:'bj'},
+    {id:'Pinky', image:'images/pinky.png', species:'bear', gender:'f', personality:'peppy', shortcode:'bk'},
+    {id:'Piper', image:'images/piper.png', species:'bird', gender:'f', personality:'peppy', shortcode:'bl'},
+    {id:'Pippy', image:'images/pippy.png', species:'rabbit', gender:'f', personality:'peppy', shortcode:'bm'},
+    {id:'Plucky', image:'images/plucky.png', species:'chicken', gender:'f', personality:'uchi', shortcode:'bn'},
+    {id:'Pompom', image:'images/pompom.png', species:'duck', gender:'f', personality:'peppy', shortcode:'c0'},
+    {id:'Poncho', image:'images/poncho.png', species:'cub', gender:'m', personality:'jock', shortcode:'c1'},
+    {id:'Poppy', image:'images/poppy.png', species:'squirrel', gender:'f', personality:'normal', shortcode:'c2'},
+    {id:'Portia', image:'images/portia.png', species:'dog', gender:'f', personality:'snooty', shortcode:'c3'},
+    {id:'Prince', image:'images/prince.png', species:'frog', gender:'m', personality:'lazy', shortcode:'c4'},
+    {id:'Puck', image:'images/puck.png', species:'penguin', gender:'m', personality:'lazy', shortcode:'c5'},
+    {id:'Puddles', image:'images/puddles.png', species:'frog', gender:'f', personality:'peppy', shortcode:'c6'},
+    {id:'Pudge', image:'images/pudge.png', species:'cub', gender:'m', personality:'lazy', shortcode:'c7'},
+    {id:'Punchy', image:'images/punchy.png', species:'cat', gender:'m', personality:'lazy', shortcode:'c8'},
+    {id:'Purrl', image:'images/purrl.png', species:'cat', gender:'f', personality:'snooty', shortcode:'c9'},
+    {id:'Queenie', image:'images/queenie.png', species:'ostrich', gender:'f', personality:'snooty', shortcode:'ca'},
+    {id:'Quillson', image:'images/quillson.png', species:'duck', gender:'m', personality:'smug', shortcode:'cb'},
+    {id:'Raddle', image:'images/raddle.png', species:'frog', gender:'m', personality:'lazy', shortcode:'cc'},
+    {id:'Rasher', image:'images/rasher.png', species:'pig', gender:'m', personality:'cranky', shortcode:'cd'},
+    {id:'Raymond', image:'images/raymond.png', species:'cat', gender:'m', personality:'smug', shortcode:'ce'},
+    {id:'Renee', image:'images/renee.png', species:'rhino', gender:'f', personality:'uchi', shortcode:'cf'},
+    {id:'Reneigh', image:'images/reneigh.png', species:'horse', gender:'f', personality:'uchi', shortcode:'cg'},
+    {id:'Rex', image:'images/rex.png', species:'lion', gender:'m', personality:'lazy', shortcode:'ch'},
+    {id:'Rhonda', image:'images/rhonda.png', species:'rhino', gender:'f', personality:'normal', shortcode:'ci'},
+    {id:'Ribbot', image:'images/ribbot.png', species:'frog', gender:'m', personality:'jock', shortcode:'cj'},
+    {id:'Ricky', image:'images/ricky.png', species:'squirrel', gender:'m', personality:'cranky', shortcode:'ck'},
+    {id:'Rilla', image:'images/rilla.png', species:'gorilla', gender:'f', personality:'peppy', shortcode:'cl'},
+    {id:'Rizzo', image:'images/rizzo.png', species:'mouse', gender:'m', personality:'cranky', shortcode:'cm'},
+    {id:'Roald', image:'images/roald.png', species:'penguin', gender:'m', personality:'jock', shortcode:'cn'},
+    {id:'Robin', image:'images/robin.png', species:'bird', gender:'f', personality:'snooty', shortcode:'d0'},
+    {id:'Rocco', image:'images/rocco.png', species:'hippo', gender:'m', personality:'cranky', shortcode:'d1'},
+    {id:'Rocket', image:'images/rocket.png', species:'gorilla', gender:'f', personality:'uchi', shortcode:'d2'},
+    {id:'Rod', image:'images/rod.png', species:'mouse', gender:'m', personality:'jock', shortcode:'d3'},
+    {id:'Rodeo', image:'images/rodeo.png', species:'bull', gender:'m', personality:'lazy', shortcode:'d4'},
+    {id:'Rodney', image:'images/rodney.png', species:'hamster', gender:'m', personality:'smug', shortcode:'d5'},
+    {id:'Rolf', image:'images/rolf.png', species:'tiger', gender:'m', personality:'cranky', shortcode:'d6'},
+    {id:'Rooney', image:'images/rooney.png', species:'kangaroo', gender:'m', personality:'cranky', shortcode:'d7'},
+    {id:'Rory', image:'images/rory.png', species:'lion', gender:'m', personality:'jock', shortcode:'d8'},
+    {id:'Roscoe', image:'images/roscoe.png', species:'horse', gender:'m', personality:'cranky', shortcode:'d9'},
+    {id:'Rosie', image:'images/rosie.png', species:'cat', gender:'f', personality:'peppy', shortcode:'da'},
+    {id:'Rowan', image:'images/rowan.png', species:'tiger', gender:'m', personality:'jock', shortcode:'db'},
+    {id:'Ruby', image:'images/ruby.png', species:'rabbit', gender:'f', personality:'peppy', shortcode:'dc'},
+    {id:'Rudy', image:'images/rudy.png', species:'cat', gender:'m', personality:'jock', shortcode:'dd'},
+    {id:'Sally', image:'images/sally.png', species:'squirrel', gender:'f', personality:'normal', shortcode:'de'},
+    {id:'Samson', image:'images/samson.png', species:'mouse', gender:'m', personality:'jock', shortcode:'df'},
+    {id:'Sandy', image:'images/sandy.png', species:'ostrich', gender:'f', personality:'normal', shortcode:'dg'},
+    {id:'Savannah', image:'images/savannah.png', species:'horse', gender:'f', personality:'normal', shortcode:'dh'},
+    {id:'Scoot', image:'images/scoot.png', species:'duck', gender:'m', personality:'jock', shortcode:'di'},
+    {id:'Shari', image:'images/shari.png', species:'monkey', gender:'f', personality:'uchi', shortcode:'dj'},
+    {id:'Sheldon', image:'images/sheldon.png', species:'squirrel', gender:'m', personality:'jock', shortcode:'dk'},
+    {id:'Shep', image:'images/shep.png', species:'dog', gender:'m', personality:'smug', shortcode:'dl'},
+    {id:'Sherb', image:'images/sherb.png', species:'goat', gender:'m', personality:'lazy', shortcode:'dm'},
+    {id:'Simon', image:'images/simon.png', species:'monkey', gender:'m', personality:'lazy', shortcode:'dn'},
+    {id:'Skye', image:'images/skye.png', species:'wolf', gender:'f', personality:'normal', shortcode:'e0'},
+    {id:'Sly', image:'images/sly.png', species:'alligator', gender:'m', personality:'jock', shortcode:'e1'},
+    {id:'Snake', image:'images/snake.png', species:'rabbit', gender:'m', personality:'jock', shortcode:'e2'},
+    {id:'Snooty', image:'images/snooty.png', species:'anteater', gender:'f', personality:'snooty', shortcode:'e3'},
+    {id:'Soleil', image:'images/soleil.png', species:'hamster', gender:'f', personality:'snooty', shortcode:'e4'},
+    {id:'Sparro', image:'images/sparro.png', species:'bird', gender:'m', personality:'jock', shortcode:'e5'},
+    {id:'Spike', image:'images/spike.png', species:'rhino', gender:'m', personality:'cranky', shortcode:'e6'},
+    {id:'Spork', image:'images/spork.png', species:'pig', gender:'m', personality:'lazy', shortcode:'e7'},
+    {id:'Sprinkle', image:'images/sprinkle.png', species:'penguin', gender:'f', personality:'peppy', shortcode:'e8'},
+    {id:'Sprocket', image:'images/sprocket.png', species:'ostrich', gender:'m', personality:'jock', shortcode:'e9'},
+    {id:'Static', image:'images/static.png', species:'squirrel', gender:'m', personality:'cranky', shortcode:'ea'},
+    {id:'Stella', image:'images/stella.png', species:'sheep', gender:'f', personality:'normal', shortcode:'eb'},
+    {id:'Sterling', image:'images/sterling.png', species:'eagle', gender:'m', personality:'jock', shortcode:'ec'},
+    {id:'Stinky', image:'images/stinky.png', species:'cat', gender:'m', personality:'jock', shortcode:'ed'},
+    {id:'Stitches', image:'images/stitches.png', species:'cub', gender:'m', personality:'lazy', shortcode:'ee'},
+    {id:'Stu', image:'images/stu.png', species:'bull', gender:'m', personality:'lazy', shortcode:'ef'},
+    {id:'Sydney', image:'images/sydney.png', species:'koala', gender:'f', personality:'normal', shortcode:'eg'},
+    {id:'Sylvana', image:'images/sylvana.png', species:'squirrel', gender:'f', personality:'normal', shortcode:'eh'},
+    {id:'Sylvia', image:'images/sylvia.png', species:'kangaroo', gender:'f', personality:'uchi', shortcode:'ei'},
+    {id:'T-Bone', image:'images/tbone.png', species:'bull', gender:'m', personality:'cranky', shortcode:'ej'},
+    {id:'Tabby', image:'images/tabby.png', species:'cat', gender:'f', personality:'peppy', shortcode:'ek'},
+    {id:'Tad', image:'images/tad.png', species:'frog', gender:'m', personality:'jock', shortcode:'el'},
+    {id:'Tammi', image:'images/tammi.png', species:'monkey', gender:'f', personality:'peppy', shortcode:'em'},
+    {id:'Tammy', image:'images/tammy.png', species:'cub', gender:'f', personality:'uchi', shortcode:'en'},
+    {id:'Tangy', image:'images/tangy.png', species:'cat', gender:'f', personality:'peppy', shortcode:'f0'},
+    {id:'Tank', image:'images/tank.png', species:'rhino', gender:'m', personality:'jock', shortcode:'f1'},
+    {id:'Tasha', image:'images/tasha.png', species:'squirrel', gender:'f', personality:'snooty', shortcode:'f2'},
+    {id:'Teddy', image:'images/teddy.png', species:'bear', gender:'m', personality:'jock', shortcode:'f3'},
+    {id:'Tex', image:'images/tex.png', species:'penguin', gender:'m', personality:'smug', shortcode:'f4'},
+    {id:'Tia', image:'images/tia.png', species:'elephant', gender:'f', personality:'normal', shortcode:'f5'},
+    {id:'Tiffany', image:'images/tiffany.png', species:'rabbit', gender:'f', personality:'snooty', shortcode:'f6'},
+    {id:'Timbra', image:'images/timbra.png', species:'sheep', gender:'f', personality:'snooty', shortcode:'f7'},
+    {id:'Tipper', image:'images/tipper.png', species:'cow', gender:'f', personality:'snooty', shortcode:'f8'},
+    {id:'Toby', image:'images/toby.png', species:'rabbit', gender:'m', personality:'smug', shortcode:'f9'},
+    {id:'Tom', image:'images/tom.png', species:'cat', gender:'m', personality:'cranky', shortcode:'fa'},
+    {id:'Truffles', image:'images/truffles.png', species:'pig', gender:'f', personality:'peppy', shortcode:'fb'},
+    {id:'Tucker', image:'images/tucker.png', species:'elephant', gender:'m', personality:'lazy', shortcode:'fc'},
+    {id:'Tutu', image:'images/tutu.png', species:'bear', gender:'f', personality:'peppy', shortcode:'fd'},
+    {id:'Twiggy', image:'images/twiggy.png', species:'bird', gender:'f', personality:'peppy', shortcode:'fe'},
+    {id:'Tybalt', image:'images/tybalt.png', species:'tiger', gender:'m', personality:'jock', shortcode:'ff'},
+    {id:'Ursala', image:'images/ursala.png', species:'bear', gender:'f', personality:'uchi', shortcode:'fg'},
+    {id:'Velma', image:'images/velma.png', species:'goat', gender:'f', personality:'snooty', shortcode:'fh'},
+    {id:'Vesta', image:'images/vesta.png', species:'sheep', gender:'f', personality:'normal', shortcode:'fi'},
+    {id:'Vic', image:'images/vic.png', species:'bull', gender:'m', personality:'cranky', shortcode:'fj'},
+    {id:'Victoria', image:'images/victoria.png', species:'horse', gender:'f', personality:'peppy', shortcode:'fk'},
+    {id:'Violet', image:'images/violet.png', species:'gorilla', gender:'f', personality:'snooty', shortcode:'fl'},
+    {id:'Vivian', image:'images/vivian.png', species:'wolf', gender:'f', personality:'snooty', shortcode:'fm'},
+    {id:'Vladimir', image:'images/vladimir.png', species:'cub', gender:'m', personality:'cranky', shortcode:'fn'},
+    {id:'Wade', image:'images/wade.png', species:'penguin', gender:'m', personality:'lazy', shortcode:'g0'},
+    {id:'Walker', image:'images/walker.png', species:'dog', gender:'m', personality:'lazy', shortcode:'g1'},
+    {id:'Walt', image:'images/walt.png', species:'kangaroo', gender:'m', personality:'cranky', shortcode:'g2'},
+    {id:'Wart Jr.', image:'images/wartjr.png', species:'frog', gender:'m', personality:'cranky', shortcode:'g3'},
+    {id:'Weber', image:'images/weber.png', species:'duck', gender:'m', personality:'lazy', shortcode:'g4'},
+    {id:'Wendy', image:'images/wendy.png', species:'sheep', gender:'f', personality:'snooty', shortcode:'g5'},
+    {id:'Willow', image:'images/willow.png', species:'sheep', gender:'f', personality:'snooty', shortcode:'g6'},
+    {id:'Winnie', image:'images/winnie.png', species:'horse', gender:'f', personality:'peppy', shortcode:'g7'},
+    {id:'Wolfgang', image:'images/wolfgang.png', species:'wolf', gender:'m', personality:'cranky', shortcode:'g8'},
+    {id:'Yuka', image:'images/yuka.png', species:'koala', gender:'f', personality:'snooty', shortcode:'g9'},
+    {id:'Zell', image:'images/zell.png', species:'deer', gender:'m', personality:'smug', shortcode:'ga'},
+    {id:'Zucker', image:'images/zucker.png', species:'octopus', gender:'m', personality:'lazy', shortcode:'gb'},
+];
+
+var myPicker = new picker.Picker({
+    items: items,
+    shortcodeLength: 2,
+    favoritesQueryParam: 'favs',
+    defaultSettings: {
+      maxBatchSize:20,
+      species: ['alligator','anteater','bear','bird','cat','chicken','cow','cub','deer','dog','duck','eagle','elephant','frog','goat','gorilla','hamster','hippo','horse','kangaroo','koala','lion','monkey','mouse','octopus','ostrich','penguin','pig','rabbit','rhino','sheep','squirrel','tiger','wolf'],
+      personality: ['cranky','jock','lazy','normal','peppy','uchi','smug','snooty'],
+      genders: ['m','f']
+    },
+    shouldIncludeItem: function(item,settings) {
+      return settings.species.indexOf(item.species) !==-1 && settings.genders.indexOf(item.gender) !==-1 && settings.personality.indexOf(item.personality) !==-1;
+    }
+});
+
+var pickerUI = new PickerUI(myPicker, {
+    elements: {
+        pick: "#pick",
+        pass: "#pass",
+        undo: "#undo",
+        redo: "#redo",
+        evaluating: "#evaluating",
+        favorites: "#favorites",
+        settings: {
+          maxBatchSize: "#max-batch-size",
+          species: '.species',
+          personality: '.personality',
+          genders: '.genders',
+        },
+        shortcodeLink: "#shortcode-link",
+        sharedListContainer: "#shared-list-modal",
+        sharedList: "#shared-list",
+        sharedListContinue: "#shared-list-continue",
+        sharedListSkip: ".shared-list-skip"
+    }
+});
+
+pickerUI.initialize();
+
+/* Sortable favorites - you can safely remove this, and the Sortable.min.js script, if you don't want to be able to sort your favorite list. */
+var sortable = new Sortable(pickerUI.elem.favorites.get(0), {
+    draggable: '.item',
+    animation: 100,
+    onStart: function() {
+        pickerUI.elem.favorites.addClass("sorting");
+    },
+    onEnd: function() {
+        pickerUI.elem.favorites.removeClass("sorting");
+    },
+    onUpdate: function() {
+        myPicker.setFavorites(pickerUI.elem.favorites.children().map(function() {
+            return pickerUI.getItem(this);
+        }).get());
+        pickerUI.update(true);
+    }
+});
+/* End sortable favorites */
+</script>
+</body>
+</html>
